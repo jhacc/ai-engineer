@@ -1,6 +1,6 @@
 # AI Engineer
 
-A second engineer for Factorio 2.0 that plays alongside you. Talk to it in game ("mine some iron and build a furnace") and it walks, mines, crafts and builds like a player, using only what's in its own inventory (or you can enable cheats).
+A second engineer for Factorio 2.0+ that plays alongside you. Talk to it in game ("mine some iron and build a furnace") and it walks, mines, crafts and builds like a player, using only what's in its own inventory (or you can enable cheats).
 
 It runs on a **free AI model on your own computer** (through [Ollama](https://ollama.com)), or on **Claude** with your own Anthropic API key.
 
