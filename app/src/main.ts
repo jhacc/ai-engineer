@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
-// AI Engineer helper app: connects your Factorio game to Claude or a local model. Each start asks
-// every setting (the model, its options, humor, RCON), defaulting to the last answers.
+// AI Engineer helper app: connects your Factorio game to Claude, a local model or an OpenAI-compatible server.
+// Each start asks every setting (the model, its options, humor, RCON), defaulting to the last answers.
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { Agent, warmUp } from "./agent";
-import { configPath, dataDir, DEFAULT_HUMOR, HUMOR_LABELS, loadConfig, MODELS } from "./config";
+import { configPath, dataDir, DEFAULT_HUMOR, envPath, HUMOR_LABELS, loadConfig, MODELS } from "./config";
+import { chatCompletionsAPI } from "./endpoint";
 import { Game } from "./game";
 import { claimInstance } from "./instance";
 import { Rcon } from "./rcon";
@@ -23,15 +24,20 @@ if (!(await claimInstance())) {
 
 const config = await runSetup(loadConfig());
 const local = config.provider === "local" ? config.local : undefined;
+const endpoint = config.provider === "openai" ? config.endpoint : undefined;
 const label =
-  (local ? `local model ${local.model} (${local.context} tokens of context)` : MODELS[config.model].label) +
+  (local ? `local model ${local.model} (${local.context} tokens of context)`
+  : endpoint ? `${endpoint.model} at ${endpoint.url}`
+  : MODELS[config.model].label) +
   ` · humor: ${HUMOR_LABELS[config.humor ?? DEFAULT_HUMOR].split(":")[0]}`;
-log(`AI Engineer ${pkg.version} · ${label} · settings in ${configPath()}`);
+log(`AI Engineer ${pkg.version} · ${label} · settings in ${configPath()}, API keys in ${envPath()}`);
 
-// Ollama serves the same Messages API on the user's computer and ignores the key.
+// Ollama serves the same Messages API on the user's computer and ignores the key; other servers speak chat completions.
 const api = local
   ? new Anthropic({ apiKey: "ollama", baseURL: local.url, maxRetries: 1, timeout: 10 * 60 * 1000 })
-  : new Anthropic({ apiKey: config.apiKey, maxRetries: 3 });
+  : endpoint
+    ? chatCompletionsAPI({ url: endpoint.url, apiKey: endpoint.apiKey })
+    : new Anthropic({ apiKey: config.apiKey, maxRetries: 3 });
 
 /** Gets the local model loaded and its prompt cached while the owner starts the game, not on their first message. */
 function warm(when: string) {

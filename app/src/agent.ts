@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { costOf, MODELS, type Config, type Humor, type LocalModel } from "./config";
+import { EndpointError } from "./endpoint";
 import { CHEAT_NAMES, CHEAT_TOOLS, claudeTools, JOB_TOOLS, TOOLS, validate } from "./tools";
 import type { ToolResult } from "./game";
 import tipsFile from "./tips.md" with { type: "text" };
@@ -351,7 +352,7 @@ export class Agent {
 
   constructor(
     private readonly api: MessagesAPI,
-    private readonly config: Pick<Config, "model" | "effort" | "provider" | "local" | "humor">,
+    private readonly config: Pick<Config, "model" | "effort" | "provider" | "local" | "endpoint" | "humor">,
     directory: string,
     session: string,
   ) {
@@ -440,7 +441,7 @@ export class Agent {
       } catch (error) {
         if (signal.aborted) return;
         // A tool input that isn't valid JSON rejects the stream before anything was appended.
-        if (error instanceof Anthropic.APIError || jsonRetries++ >= 2) throw error;
+        if (error instanceof Anthropic.APIError || error instanceof EndpointError || jsonRetries++ >= 2) throw error;
         continue;
       }
       if (message.stop_reason === "refusal") {
@@ -575,9 +576,9 @@ export class Agent {
     }
   }
 
-  /** The local model, when the owner chose one instead of Claude. */
+  /** The non-Claude model, when the owner chose one: Ollama's, or an OpenAI-compatible server's (played the same way). */
   get local(): LocalModel | undefined {
-    return this.config.provider === "local" ? this.config.local : undefined;
+    return this.config.provider === "local" ? this.config.local : this.config.provider === "openai" ? this.config.endpoint : undefined;
   }
 
   private request() {

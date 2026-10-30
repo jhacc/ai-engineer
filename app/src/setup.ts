@@ -4,17 +4,24 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import Anthropic from "@anthropic-ai/sdk";
 import {
+  DEFAULT_CONTEXT,
   DEFAULT_HUMOR,
   DEFAULT_MODEL,
+  endpointFromEnv,
+  ENV_KEYS,
+  envPath,
   HUMOR_LABELS,
   LOCAL_DEFAULTS,
   MODELS,
   saveConfig,
+  saveEnv,
   type Config,
+  type EndpointModel,
   type Humor,
   type LocalModel,
   type ModelKey,
 } from "./config";
+import { listModels } from "./endpoint";
 
 const ask = (question: string, fallback = "") => (prompt(question) ?? "").trim() || fallback;
 
@@ -81,7 +88,8 @@ async function askApiKey(previous: string | undefined): Promise<string> {
     !previous,
     "\nYour engineer uses Claude through your own Anthropic API key (usage is billed to your account).",
     "Create one at https://console.anthropic.com/settings/keys",
-    "Tip: make it in a workspace with a spend limit, just for this app.\n",
+    "Tip: make it in a workspace with a spend limit, just for this app.",
+    `It's kept in ${envPath()} as ${ENV_KEYS.anthropic}.\n`,
   );
   while (true) {
     // The saved key was checked when it was entered, so keeping it needs no request.
@@ -93,6 +101,7 @@ async function askApiKey(previous: string | undefined): Promise<string> {
     }
     try {
       await new Anthropic({ apiKey: key, maxRetries: 1 }).models.list({ limit: 1 });
+      saveEnv(ENV_KEYS.anthropic, key);
       return key;
     } catch (error) {
       console.log(
@@ -126,8 +135,70 @@ function askProvider(previous: Config | null): NonNullable<Config["provider"]> {
   console.log("\nWho should play your engineer?");
   console.log("  1. Claude, through your Anthropic API key (recommended)");
   console.log("  2. A local model on this computer, through Ollama (free, much less capable)");
-  const fallback = previous?.provider === "local" ? "2" : "1";
-  return ask(`Choose 1-2 [${fallback}]: `, fallback) === "2" ? "local" : "anthropic";
+  console.log("  3. Any OpenAI-compatible server (LiteLLM, vLLM, OpenAI...; address, model and key in .env)");
+  const fallback = previous?.provider === "local" ? "2" : previous?.provider === "openai" ? "3" : "1";
+  const choice = ask(`Choose 1-3 [${fallback}]: `, fallback);
+  return choice === "2" ? "local" : choice === "3" ? "openai" : "anthropic";
+}
+
+/** Options for a non-Claude model: cheats and talking to every player. */
+function askExtras(previous: Pick<LocalModel, "cheats" | "everyone"> | undefined) {
+  explain(
+    previous?.cheats === undefined,
+    "\nCheats let the engineer spawn items and run any Lua command in your game, which makes up for a",
+    "small model's mistakes. Only your own requests can use them; other players' requests can't.",
+  );
+  const cheats = yesNo("Allow cheats?", previous?.cheats);
+  explain(
+    previous?.everyone === undefined,
+    "\nThe engineer normally only talks to you. It can also take requests from every player in the game",
+    "(they type /ai <message>) and hand them items.",
+  );
+  const everyone = yesNo("Let all players talk to it?", previous?.everyone);
+  return { cheats, everyone };
+}
+
+async function askEndpoint(previous: EndpointModel | undefined): Promise<EndpointModel> {
+  const env = (name: string) => process.env[name]?.trim() ?? "";
+  explain(
+    !previous,
+    "\nAny server with an OpenAI-compatible chat completions API. Its settings are kept in",
+    `${envPath()} (${Object.values(ENV_KEYS).slice(1).join(", ")}).`,
+  );
+  console.log("");
+  let url: string;
+  let apiKey: string;
+  let served: string[] = [];
+  while (true) {
+    url = ask(env(ENV_KEYS.url) ? `Server address [${env(ENV_KEYS.url)}]: ` : "Server address (e.g. https://host/v1): ", env(ENV_KEYS.url));
+    url = url.replace(/\/+$/, "");
+    if (!url) continue;
+    apiKey = ask(env(ENV_KEYS.key) ? "API key [keep the one in .env]: " : "API key (Enter for none): ", env(ENV_KEYS.key));
+    try {
+      served = await listModels(url, apiKey);
+      break;
+    } catch (error) {
+      console.log(`Couldn't list the server's models: ${error instanceof Error ? error.message : error}.`);
+      if (ask("Use it anyway? [y/N] ", "n").toLowerCase().startsWith("y")) break;
+    }
+  }
+  if (served.length) {
+    console.log("Models on the server:");
+    served.forEach((name, i) => console.log(`  ${i + 1}. ${name}`));
+  }
+  let model = "";
+  while (!model) {
+    const current = env(ENV_KEYS.model);
+    const answer = ask(current ? `Model (number or name) [${current}]: ` : "Model (number or name): ", current);
+    model = served[Number(answer) - 1] ?? answer;
+  }
+  const start = env(ENV_KEYS.context) || String(DEFAULT_CONTEXT);
+  const context = Number(ask(`Model's context length in tokens [${start}]: `, start));
+  saveEnv(ENV_KEYS.url, url);
+  saveEnv(ENV_KEYS.key, apiKey);
+  saveEnv(ENV_KEYS.model, model);
+  saveEnv(ENV_KEYS.context, String(Number.isInteger(context) && context >= 8192 ? context : DEFAULT_CONTEXT));
+  return endpointFromEnv(askExtras(previous))!;
 }
 
 async function askLocal(previous: LocalModel | undefined): Promise<LocalModel> {
@@ -175,19 +246,7 @@ async function askLocal(previous: LocalModel | undefined): Promise<LocalModel> {
     "(Some models, like qwen3:4b, always think.)",
   );
   const think = !ask(`Let the model think? [${start.think ? "Y/n" : "y/N"}] `, start.think ? "y" : "n").toLowerCase().startsWith("n");
-  explain(
-    previous?.cheats === undefined,
-    "\nCheats let the engineer spawn items and run any Lua command in your game, which makes up for a",
-    "small model's mistakes. Only your own requests can use them; other players' requests can't.",
-  );
-  const cheats = yesNo("Allow cheats?", start.cheats);
-  explain(
-    previous?.everyone === undefined,
-    "\nThe engineer normally only talks to you. It can also take requests from every player in the game",
-    "(they type /ai <message>) and hand them items.",
-  );
-  const everyone = yesNo("Let all players talk to it?", start.everyone);
-  return { url, model, context: Number.isInteger(context) && context >= 8192 ? context : start.context, think, cheats, everyone };
+  return { url, model, context: Number.isInteger(context) && context >= 8192 ? context : start.context, think, ...askExtras(previous) };
 }
 
 function askHumor(previous: Humor | undefined): Humor {
@@ -242,8 +301,9 @@ export async function runSetup(previous: Config | null): Promise<Config> {
   const config: Config = {
     provider,
     // Settings for the option not chosen are kept, so switching back doesn't ask again.
-    local: claude ? previous?.local : await askLocal(previous?.local),
-    apiKey: claude ? await askApiKey(previous?.apiKey || undefined) : (previous?.apiKey ?? ""),
+    local: provider === "local" ? await askLocal(previous?.local) : previous?.local,
+    endpoint: provider === "openai" ? await askEndpoint(previous?.endpoint) : previous?.endpoint,
+    apiKey: claude ? await askApiKey(previous?.apiKey || process.env[ENV_KEYS.anthropic] || undefined) : (previous?.apiKey ?? ""),
     model: claude ? askModel(previous?.model) : (previous?.model ?? DEFAULT_MODEL),
     effort: claude ? askEffort(previous?.effort) : (previous?.effort ?? "medium"),
     humor: askHumor(previous?.humor),

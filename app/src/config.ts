@@ -81,6 +81,13 @@ export type LocalModel = {
 };
 export const LOCAL_DEFAULTS: LocalModel = { url: "http://localhost:11434", model: "qwen3:4b", context: 16384, think: true };
 
+/**
+ * A model on any OpenAI-compatible chat completions server, played like a local model. Its address, model,
+ * key and context length come from .env (`ENV_KEYS`); only `cheats` and `everyone` are saved in config.json.
+ */
+export type EndpointModel = LocalModel & { apiKey: string };
+export const DEFAULT_CONTEXT = 128000;
+
 /** How much humor the engineer talks with: 0 none (all business) to 3 (constant banter). */
 export type Humor = 0 | 1 | 2 | 3;
 export const HUMOR_LABELS: Record<Humor, string> = {
@@ -92,10 +99,11 @@ export const HUMOR_LABELS: Record<Humor, string> = {
 export const DEFAULT_HUMOR: Humor = 2;
 
 export type Config = {
-  /** "local" uses `local` instead of Claude; absent means Claude. */
-  provider?: "anthropic" | "local";
+  /** "local" uses `local` and "openai" uses `endpoint` instead of Claude; absent means Claude. */
+  provider?: "anthropic" | "local" | "openai";
   local?: LocalModel;
-  /** Empty when only a local model has been set up. */
+  endpoint?: EndpointModel;
+  /** From ANTHROPIC_API_KEY in .env; empty when only another model has been set up. */
   apiKey: string;
   model: ModelKey;
   effort: "low" | "medium" | "high";
@@ -121,12 +129,68 @@ export function dataDir(): string {
 
 const file = () => join(dataDir(), "config.json");
 
+/** The LLM settings' variables in `.env` (Bun loads it into process.env at start), never in config.json. */
+export const ENV_KEYS = {
+  anthropic: "ANTHROPIC_API_KEY",
+  url: "LLM_BASE_URL",
+  model: "LLM_MODEL",
+  key: "LLM_API_KEY",
+  context: "LLM_CONTEXT",
+} as const;
+export const envPath = () => join(process.cwd(), ".env");
+
+/** The OpenAI-compatible model set in .env, or undefined while its address or model is missing. */
+export function endpointFromEnv(options?: Pick<LocalModel, "cheats" | "everyone">): EndpointModel | undefined {
+  const url = process.env[ENV_KEYS.url]?.trim().replace(/\/+$/, "");
+  const model = process.env[ENV_KEYS.model]?.trim();
+  if (!url || !model) return undefined;
+  const context = Number(process.env[ENV_KEYS.context]);
+  return {
+    url,
+    model,
+    apiKey: process.env[ENV_KEYS.key]?.trim() ?? "",
+    context: Number.isInteger(context) && context >= 8192 ? context : DEFAULT_CONTEXT,
+    think: false,
+    cheats: options?.cheats,
+    everyone: options?.everyone,
+  };
+}
+
+/** Sets one variable in `.env`, keeping the rest of the file. */
+export function saveEnv(name: string, value: string) {
+  const path = envPath();
+  const lines = existsSync(path) ? readFileSync(path, "utf8").split(/\r?\n/) : [];
+  // Single quotes: Bun would expand a `$` in the key otherwise.
+  const line = `${name}='${value}'`;
+  const at = lines.findIndex((l) => l.startsWith(`${name}=`));
+  if (at >= 0) lines[at] = line;
+  else {
+    if (lines.at(-1) === "") lines.pop();
+    lines.push(line, "");
+  }
+  writeFileSync(path, lines.join("\n"), { mode: 0o600 });
+  process.env[name] = value;
+}
+
 export function loadConfig(): Config | null {
   if (!existsSync(file())) return null;
   try {
     const config = JSON.parse(readFileSync(file(), "utf8")) as Config;
     if (!config.rcon?.password || !config.appId) return null;
-    if (config.provider === "local" ? !config.local?.model : !config.apiKey) return null;
+    // Older versions kept the key in config.json: move it to .env.
+    if (config.apiKey) {
+      if (!process.env[ENV_KEYS.anthropic]) saveEnv(ENV_KEYS.anthropic, config.apiKey);
+      saveConfig(config);
+    }
+    config.apiKey = process.env[ENV_KEYS.anthropic] ?? "";
+    // Without the server in .env, the saved options are kept for when it's set up again.
+    config.endpoint = endpointFromEnv(config.endpoint) ?? config.endpoint;
+    if (
+      config.provider === "local" ? !config.local?.model
+      : config.provider === "openai" ? !config.endpoint
+      : !config.apiKey
+    )
+      return null;
     if (config.local) config.local = { ...LOCAL_DEFAULTS, ...config.local };
     if (!(config.model in MODELS)) config.model = DEFAULT_MODEL;
     config.effort ??= "medium";
@@ -138,9 +202,10 @@ export function loadConfig(): Config | null {
 }
 
 export function saveConfig(config: Config) {
-  // Owner-only permissions where the OS supports them; the key never leaves this computer
-  // except in requests to Anthropic.
-  writeFileSync(file() + ".tmp", JSON.stringify(config, null, 2), { mode: 0o600 });
+  // Keys and the endpoint's server settings are in .env.
+  const { endpoint } = config;
+  const saved = { ...config, apiKey: undefined, endpoint: endpoint && { cheats: endpoint.cheats, everyone: endpoint.everyone } };
+  writeFileSync(file() + ".tmp", JSON.stringify(saved, null, 2), { mode: 0o600 });
   renameSync(file() + ".tmp", file());
 }
 
