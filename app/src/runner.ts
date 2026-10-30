@@ -92,13 +92,13 @@ function describeEvent(item: PollItem): string {
 
 function friendly(error: unknown): string {
   if (error instanceof Anthropic.AuthenticationError)
-    return "My Anthropic API key was rejected. Run the AI Engineer app's setup again.";
+    return "My Anthropic API key was rejected. Restart the AI Engineer app and enter a new one.";
   if (error instanceof Anthropic.PermissionDeniedError) return "My API key isn't allowed to use this model.";
   if (error instanceof Anthropic.RateLimitError) return "I'm being rate limited by Anthropic. Try again in a minute.";
   if (error instanceof Anthropic.APIConnectionError)
     return "I can't reach my AI model. If you use a local model, check that Ollama is running.";
   if (error instanceof Anthropic.NotFoundError)
-    return "My AI model wasn't found. For a local model, download it in Ollama or run the app's setup again.";
+    return "My AI model wasn't found. For a local model, download it in Ollama or restart the app and pick another.";
   if (error instanceof Anthropic.APIError) return `Claude API error (${error.status ?? "?"}). Try again shortly.`;
   return `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
 }

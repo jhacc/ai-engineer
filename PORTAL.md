@@ -7,7 +7,9 @@ It runs on either a **free local model** (through [Ollama](https://ollama.com)) 
 ## Install
 
 1. Install this mod.
-2. Download `ai-engineer.exe` from [GitHub Releases](https://github.com/jhacc/ai-engineer/releases). Windows may warn you about it because it isn't signed.
+2. Download the helper app from [GitHub Releases](https://github.com/jhacc/ai-engineer/releases). It isn't signed, so your computer may warn you about it.
+   - **Windows:** `ai-engineer.exe`. If SmartScreen appears, click "More info" → "Run anyway".
+   - **Mac:** `ai-engineer-mac-arm64.zip` (M1 or newer) or `ai-engineer-mac-intel.zip`. Unzip it, then right-click `ai-engineer` → Open → Open. If macOS still refuses, go to System Settings → Privacy & Security and click "Open Anyway".
 3. Run it and choose your model:
    - **Local (free):** install Ollama, run `ollama pull qwen3:4b`, and set Ollama's context length to at least 16K.
    - **Claude:** paste an API key from [console.anthropic.com](https://console.anthropic.com/settings/keys). Usage is billed to your account.

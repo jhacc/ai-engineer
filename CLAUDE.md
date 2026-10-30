@@ -37,7 +37,7 @@ A Factorio 2.0 mod plus a helper app that lets Claude play as a second engineer.
   - `tools.ts`: tool schemas and validation.
   - `game.ts`: the typed `/aie` protocol.
   - `rcon.ts`: the RCON client.
-  - `setup.ts`: first-run setup and Factorio config.ini editing.
+  - `setup.ts`: the settings questions, asked at every start (explanations only the first time, the last answers as defaults), and Factorio config.ini editing.
   - `config.ts`: settings and the data folder.
 - `scripts/`: the disposable-server test harness (`factorio.ts`), the real-game test, and mod install/package.
 
@@ -102,7 +102,7 @@ A Factorio 2.0 mod plus a helper app that lets Claude play as a second engineer.
 - `bun run test:layout-dir`: the ore lines planned (not built) on flat grass with three fields and a lake over everything east of them: the chosen frame keeps the bus's area dry and doesn't run east; with a nest put where that bus went, planned again, the bus moves away from it. A couple of minutes.
 - `bun run test:grow`: the ore lines planned and built by script on flat grass with big fields, plates taken off the end of the bus as fast as they come: the iron column gets two more furnaces and its field more drills to match, a short copper field a drill more, and a copper drill whose ore is gone is picked up and replaced further up its line (grow_smelting's jobs carried out by script). A couple of minutes.
 - `bun run test:pollution`: keep-busy's pollution watch on flat grass with a switched-off nest 6 chunks east, the cloud set by hand: turret research and turrets toward the nest, drills paused (kept built), one restarted after the cloud clears, all restarted with keep-busy off. About a minute.
-- `bun run start`: run the app from source. `bun run build` builds `dist/ai-engineer(.exe)`.
+- `bun run start`: run the app from source. `bun run build` builds `dist/ai-engineer(.exe)` for this computer; `bun run build:all` builds the release files: `ai-engineer.exe` and `ai-engineer-mac-<arm64|intel>.zip` (cross-compiled, the executable bit kept as a Unix mode in the zip).
 - `bun run mod:install` installs the mod into your Factorio mods folder (restart Factorio afterwards). `bun run mod:package` builds the zip for the mod portal; the version in `mod/info.json` must match `package.json`.
 
 ## Where things stand (hand-off)

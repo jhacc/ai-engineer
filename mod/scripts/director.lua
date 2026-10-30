@@ -86,8 +86,9 @@ function M.timelapse_command(player, parameter)
   if running then
     storage.timelapses[player.index] = nil
     local ext = running.ext or "png"
-    player.print(string.format("Timelapse stopped: %d follow and %d wide frames in %%APPDATA%%\\Factorio\\script-output\\%s",
-      running.follows, running.wides, (running.folder:gsub("/", "\\"))))
+    -- The game can't tell which OS it's on, so both folders are named.
+    player.print(string.format("Timelapse stopped: %d follow and %d wide frames in Factorio's script-output/%s folder (Windows: %%APPDATA%%\\Factorio, Mac: ~/Library/Application Support/factorio)",
+      running.follows, running.wides, running.folder))
     local name = running.follows > 0 and "follow" or "wide"
     player.print(string.format("To make a video there: ffmpeg -framerate 30 -i %s-%%05d.%s -c:v libx264 -pix_fmt yuv420p %s.mp4%s",
       name, ext, name, running.follows > 0 and running.wides > 0 and string.format(" (and the same for wide-%%05d.%s)", ext) or ""))

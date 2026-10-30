@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-// AI Engineer helper app: connects your Factorio game to Claude. Usage:
-//   ai-engineer          run (first run asks for your API key and sets things up)
-//   ai-engineer setup    change your API key, model (Claude or a local one) or RCON settings
+// AI Engineer helper app: connects your Factorio game to Claude or a local model. Each start asks
+// every setting (the model, its options, humor, RCON), defaulting to the last answers.
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { Agent, warmUp } from "./agent";
@@ -22,12 +21,11 @@ if (!(await claimInstance())) {
   process.exit(1);
 }
 
-let config = loadConfig();
-if (!config || process.argv[2] === "setup") config = await runSetup(config);
+const config = await runSetup(loadConfig());
 const local = config.provider === "local" ? config.local : undefined;
 const label =
   (local ? `local model ${local.model} (${local.context} tokens of context)` : MODELS[config.model].label) +
-  ` · humor: ${HUMOR_LABELS[config.humor ?? DEFAULT_HUMOR].split(":")[0]} (change with setup)`;
+  ` · humor: ${HUMOR_LABELS[config.humor ?? DEFAULT_HUMOR].split(":")[0]}`;
 log(`AI Engineer ${pkg.version} · ${label} · settings in ${configPath()}`);
 
 // Ollama serves the same Messages API on the user's computer and ignores the key.
@@ -57,7 +55,7 @@ async function connect(): Promise<Rcon> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (/password/i.test(message)) {
-        log("Factorio rejected the RCON password. Run `ai-engineer setup` to fix it.");
+        log("Factorio rejected the RCON password. Restart the app and enter the right one.");
         process.exit(1);
       }
       if (!warned) log("Waiting for Factorio... host a multiplayer game (it can be private) so RCON is open.");

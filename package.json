@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "start": "bun app/src/main.ts",
-    "setup": "bun app/src/main.ts setup",
     "typecheck": "tsc --noEmit",
     "test": "bun test app",
     "test:game": "bun scripts/test-game.ts",
@@ -23,6 +22,7 @@
     "test:order": "bun scripts/test-order.ts",
     "check": "bun run typecheck && bun run test",
     "build": "bun build app/src/main.ts --compile --outfile dist/ai-engineer",
+    "build:all": "bun scripts/package-app.ts",
     "mod:install": "bun scripts/install-mod.ts",
     "mod:package": "bun scripts/package-mod.ts"
   },

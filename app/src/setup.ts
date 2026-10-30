@@ -68,12 +68,25 @@ export function writeRcon(ini: string, socket: string, password: string): string
   return lines.join(ini.includes("\r\n") ? "\r\n" : "\n");
 }
 
-async function askApiKey(): Promise<string> {
-  console.log("\nYour engineer uses Claude through your own Anthropic API key (usage is billed to your account).");
-  console.log("Create one at https://console.anthropic.com/settings/keys");
-  console.log("Tip: make it in a workspace with a spend limit, just for this app.\n");
+/** Prints an option's explanation the first time it's asked; after that, its question is enough. */
+const explain = (first: boolean, ...lines: string[]) => {
+  if (first) for (const line of lines) console.log(line);
+};
+
+const yesNo = (question: string, current: boolean | undefined) =>
+  ask(`${question} [${current ? "Y/n" : "y/N"}] `, current ? "y" : "n").toLowerCase().startsWith("y");
+
+async function askApiKey(previous: string | undefined): Promise<string> {
+  explain(
+    !previous,
+    "\nYour engineer uses Claude through your own Anthropic API key (usage is billed to your account).",
+    "Create one at https://console.anthropic.com/settings/keys",
+    "Tip: make it in a workspace with a spend limit, just for this app.\n",
+  );
   while (true) {
-    const key = ask("Anthropic API key: ");
+    // The saved key was checked when it was entered, so keeping it needs no request.
+    const key = ask(previous ? `Anthropic API key [keep ...${previous.slice(-4)}]: ` : "Anthropic API key: ", previous);
+    if (key === previous) return key;
     if (!/^sk-ant-[\w-]{20,}$/.test(key)) {
       console.log("That doesn't look like an Anthropic API key (they start with sk-ant-).");
       continue;
@@ -91,12 +104,22 @@ async function askApiKey(): Promise<string> {
   }
 }
 
-function askModel(): ModelKey {
+function askModel(previous: ModelKey | undefined): ModelKey {
   const keys = Object.keys(MODELS) as ModelKey[];
+  const start = String(keys.indexOf(previous ?? DEFAULT_MODEL) + 1);
   console.log("\nWhich Claude model should play? Everything the engineer does is paid for with your API key.");
   keys.forEach((key, i) => console.log(`  ${i + 1}. ${MODELS[key].label}`));
-  const choice = Number(ask("Choose 1-3 [1]: ", "1"));
-  return keys[choice - 1] ?? DEFAULT_MODEL;
+  const choice = Number(ask(`Choose 1-${keys.length} [${start}]: `, start));
+  return keys[choice - 1] ?? previous ?? DEFAULT_MODEL;
+}
+
+function askEffort(previous: Config["effort"] | undefined): Config["effort"] {
+  const levels: Config["effort"][] = ["low", "medium", "high"];
+  const start = String(levels.indexOf(previous ?? "medium") + 1);
+  console.log("\nHow hard should Claude think before acting?");
+  explain(!previous, "More effort makes fewer mistakes but each action costs more and takes longer.");
+  console.log("  1. Low  2. Medium (recommended)  3. High");
+  return levels[Number(ask(`Choose 1-3 [${start}]: `, start)) - 1] ?? previous ?? "medium";
 }
 
 function askProvider(previous: Config | null): NonNullable<Config["provider"]> {
@@ -109,8 +132,12 @@ function askProvider(previous: Config | null): NonNullable<Config["provider"]> {
 
 async function askLocal(previous: LocalModel | undefined): Promise<LocalModel> {
   const start = previous ?? LOCAL_DEFAULTS;
-  console.log("\nA local model runs free on your own computer, using Ollama (https://ollama.com).");
-  console.log("It plays far worse than Claude: expect more mistakes, and slow turns without a graphics card.");
+  explain(
+    !previous,
+    "\nA local model runs free on your own computer, using Ollama (https://ollama.com).",
+    "It plays far worse than Claude: expect more mistakes, and slow turns without a graphics card.",
+  );
+  console.log("");
   const url = ask(`Ollama address [${start.url}]: `, start.url).replace(/\/+$/, "");
   let installed: string[];
   while (true) {
@@ -134,37 +161,53 @@ async function askLocal(previous: LocalModel | undefined): Promise<LocalModel> {
     console.log(`${model} isn't installed in Ollama. To download it, open a terminal and run   ollama pull ${model}`);
     if (ask("Use it anyway (after downloading)? [y/N] ", "n").toLowerCase().startsWith("y")) break;
   }
-  console.log("\nOllama gives models only 4K tokens of context by default, too little for the engineer.");
-  console.log("Raise it in the Ollama app (Settings > Context length), or set the OLLAMA_CONTEXT_LENGTH");
-  console.log("environment variable and restart Ollama. 16K suits an 8 GB graphics card; more needs more VRAM.");
+  explain(
+    !previous,
+    "\nOllama gives models only 4K tokens of context by default, too little for the engineer.",
+    "Raise it in the Ollama app (Settings > Context length), or set the OLLAMA_CONTEXT_LENGTH",
+    "environment variable and restart Ollama. 16K suits an 8 GB graphics card; more needs more VRAM.",
+  );
   const context = Number(ask(`Context length you set in Ollama [${start.context}]: `, String(start.context)));
-  console.log("\nThinking lets the model reason before each action. It makes far fewer mistakes, but each action");
-  console.log("can take a minute or more. Without it, the engineer acts in seconds but often gets things wrong.");
-  console.log("(Some models, like qwen3:4b, always think.)");
+  explain(
+    !previous,
+    "\nThinking lets the model reason before each action. It makes far fewer mistakes, but each action",
+    "can take a minute or more. Without it, the engineer acts in seconds but often gets things wrong.",
+    "(Some models, like qwen3:4b, always think.)",
+  );
   const think = !ask(`Let the model think? [${start.think ? "Y/n" : "y/N"}] `, start.think ? "y" : "n").toLowerCase().startsWith("n");
-  const yesNo = (question: string, current: boolean | undefined) =>
-    ask(`${question} [${current ? "Y/n" : "y/N"}] `, current ? "y" : "n").toLowerCase().startsWith("y");
-  console.log("\nCheats let the engineer spawn items and run any Lua command in your game, which makes up for a");
-  console.log("small model's mistakes. Only your own requests can use them; other players' requests can't.");
+  explain(
+    previous?.cheats === undefined,
+    "\nCheats let the engineer spawn items and run any Lua command in your game, which makes up for a",
+    "small model's mistakes. Only your own requests can use them; other players' requests can't.",
+  );
   const cheats = yesNo("Allow cheats?", start.cheats);
-  console.log("\nThe engineer normally only talks to you. It can also take requests from every player in the game");
-  console.log("(they type /ai <message>) and hand them items.");
+  explain(
+    previous?.everyone === undefined,
+    "\nThe engineer normally only talks to you. It can also take requests from every player in the game",
+    "(they type /ai <message>) and hand them items.",
+  );
   const everyone = yesNo("Let all players talk to it?", start.everyone);
   return { url, model, context: Number.isInteger(context) && context >= 8192 ? context : start.context, think, cheats, everyone };
 }
 
 function askHumor(previous: Humor | undefined): Humor {
   const start = previous ?? DEFAULT_HUMOR;
-  console.log("\nHow much of a sense of humor should your engineer have? (Stranded on an alien planet, a little");
-  console.log("company helps. It never jokes instead of working, and replies stay short.)");
+  console.log("\nHow much of a sense of humor should your engineer have?");
+  explain(
+    previous === undefined,
+    "(Stranded on an alien planet, a little company helps. It never jokes instead of working, and replies stay short.)",
+  );
   for (const level of [0, 1, 2, 3] as Humor[]) console.log(`  ${level}. ${HUMOR_LABELS[level]}`);
   const choice = Number(ask(`Choose 0-3 [${start}]: `, String(start)));
   return choice in HUMOR_LABELS ? (choice as Humor) : start;
 }
 
-async function askRcon(): Promise<Config["rcon"]> {
-  console.log("\nThe app talks to Factorio over RCON, which Factorio opens when you host a multiplayer game");
-  console.log("(Multiplayer > Host new game, or Host saved game; it can be private and just you).");
+async function askRcon(previous: Config["rcon"] | undefined): Promise<Config["rcon"]> {
+  explain(
+    !previous,
+    "\nThe app talks to Factorio over RCON, which Factorio opens when you host a multiplayer game",
+    "(Multiplayer > Host new game, or Host saved game; it can be private and just you).",
+  );
   const path = factorioConfigPath();
   const ini = path ? readFileSync(path, "utf8") : null;
   const existing = ini ? readRcon(ini) : null;
@@ -180,29 +223,34 @@ async function askRcon(): Promise<Config["rcon"]> {
     console.log(`Done (backup saved as ${path}.ai-engineer-backup).`);
     return rcon;
   }
-  console.log("Enter your RCON details (for a server: its --rcon-port and --rcon-password).");
-  const host = ask("Host [127.0.0.1]: ", "127.0.0.1");
-  const port = Number(ask("Port [27015]: ", "27015"));
-  const password = ask("Password: ");
-  return { host, port: Number.isInteger(port) ? port : 27015, password };
+  const start = previous ?? { host: "127.0.0.1", port: 27015, password: "" };
+  console.log("\nEnter your RCON details (for a server: its --rcon-port and --rcon-password).");
+  const host = ask(`Host [${start.host}]: `, start.host);
+  const port = Number(ask(`Port [${start.port}]: `, String(start.port)));
+  const password = ask(start.password ? "Password [keep]: " : "Password: ", start.password);
+  return { host, port: Number.isInteger(port) ? port : start.port, password };
 }
 
+/**
+ * Asks every setting, run at each start: the first time with explanations, after that with the
+ * last answers as defaults, so Enter through them keeps everything.
+ */
 export async function runSetup(previous: Config | null): Promise<Config> {
-  console.log("=== AI Engineer setup ===");
+  console.log(previous ? "=== AI Engineer settings (press Enter to keep each one) ===" : "=== AI Engineer setup ===");
   const provider = askProvider(previous);
   const claude = provider === "anthropic";
   const config: Config = {
     provider,
     // Settings for the option not chosen are kept, so switching back doesn't ask again.
     local: claude ? previous?.local : await askLocal(previous?.local),
-    apiKey: claude ? await askApiKey() : (previous?.apiKey ?? ""),
-    model: claude ? askModel() : (previous?.model ?? DEFAULT_MODEL),
-    effort: previous?.effort ?? "medium",
+    apiKey: claude ? await askApiKey(previous?.apiKey || undefined) : (previous?.apiKey ?? ""),
+    model: claude ? askModel(previous?.model) : (previous?.model ?? DEFAULT_MODEL),
+    effort: claude ? askEffort(previous?.effort) : (previous?.effort ?? "medium"),
     humor: askHumor(previous?.humor),
-    rcon: await askRcon(),
+    rcon: await askRcon(previous?.rcon),
     appId: previous?.appId ?? crypto.randomUUID(),
   };
   saveConfig(config);
-  console.log("\nSetup saved. Start or host your game, then keep this app running while you play.\n");
+  console.log(previous ? "\nSettings saved.\n" : "\nSettings saved. Start or host your game, then keep this app running while you play.\n");
   return config;
 }

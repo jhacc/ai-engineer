@@ -5,5 +5,5 @@
   "author": "Xvv",
   "factorio_version": "2.1",
   "dependencies": ["base >= 2.0.0"],
-  "description": "A second engineer that plays alongside you, powered by Claude through the AI Engineer helper app. It only listens to the player who paired it."
+  "description": "A second engineer that plays alongside you, powered by AI."
 }
