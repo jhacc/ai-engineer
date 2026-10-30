@@ -2,7 +2,7 @@
 
 A second engineer for Factorio 2.0+ that plays alongside you. Talk to it in game ("mine some iron and build a furnace") and it walks, mines, crafts and builds like a player, using only what's in its own inventory (or you can enable cheats).
 
-It runs on a **free AI model on your own computer** (through [Ollama](https://ollama.com)), or on **Claude** with your own Anthropic API key.
+It runs on a **free AI model on your own computer** (through [Ollama](https://ollama.com)), on **Claude** with your own Anthropic API key, or on **any OpenAI-compatible server**.
 
 It has two parts:
 
@@ -13,7 +13,7 @@ It has two parts:
 
 1. **Install the mod** from the Factorio mod portal (in game: Mods → Install → search "AI Engineer").
 2. **Download the helper app** from the [releases page](https://github.com/jhacc/ai-engineer/releases): `ai-engineer.exe` on Windows, or on a Mac `ai-engineer-mac-arm64.zip` (M1 or newer) or `ai-engineer-mac-intel.zip`. The app isn't signed: on Windows click "More info" → "Run anyway" if SmartScreen appears; on a Mac unzip it, then right-click `ai-engineer` → Open → Open (or System Settings → Privacy & Security → "Open Anyway").
-3. **Choose your AI**: set up a [local model](#option-a-a-free-local-model-ollama) or a [Claude API key](#option-b-claude) (below).
+3. **Choose your AI**: set up a [local model](#option-a-a-free-local-model-ollama), a [Claude API key](#option-b-claude) or an [OpenAI-compatible server](#option-c-an-openai-compatible-server) (below).
 4. **Run the helper app** and answer its questions. It can turn on Factorio's RCON setting for you (close Factorio first). Each time you start it, it goes through the settings again with your last answers filled in, so press Enter to keep each one.
 5. In Factorio, **host a multiplayer game**. It can be private, with just you. Single-player games don't open RCON, which the app needs.
 6. The app shows a code. Type `/ai-pair <code>` in the game chat. Your engineer appears next to you.
@@ -42,7 +42,20 @@ Older parts of the conversation are left out once it no longer fits in the conte
 Claude plays much better than a small local model, but usage is billed to your own Anthropic account.
 
 1. Get an Anthropic API key at [console.anthropic.com](https://console.anthropic.com/settings/keys). Creating the key in its own workspace with a spend limit keeps costs predictable.
-2. In the helper app, choose Claude, paste your key, and pick a model. Haiku is the cheapest (about 1/20th of Sonnet), but less capable.
+2. In the helper app, choose Claude, paste your key, and pick a model. Haiku is the cheapest (about 1/20th of Sonnet), but less capable. Your key is saved as `ANTHROPIC_API_KEY` in a `.env` file in the folder you run the app from.
+
+### Option C: an OpenAI-compatible server
+
+The engineer can also use any server with an OpenAI-compatible chat completions API (LiteLLM, vLLM, OpenAI and others). It's played like a local model. Its settings live in `.env`, in the folder you run the app from:
+
+```
+LLM_BASE_URL=https://your-server/v1
+LLM_MODEL=your-model
+LLM_API_KEY=your-key
+LLM_CONTEXT=128000
+```
+
+`LLM_API_KEY` can be empty for servers without keys, and `LLM_CONTEXT` defaults to 128000. In the helper app, choose the OpenAI-compatible option: it suggests what's in `.env`, lists the server's models and saves your answers back to `.env`.
 
 ## Playing
 

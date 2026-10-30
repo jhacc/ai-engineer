@@ -1,6 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { isGreeting, type Agent } from "./agent";
+import { EndpointError } from "./endpoint";
 import type { Game, PollItem } from "./game";
 import { CHEAT_NAMES, JOB_TOOLS } from "./tools";
 
@@ -100,6 +101,7 @@ function friendly(error: unknown): string {
   if (error instanceof Anthropic.NotFoundError)
     return "My AI model wasn't found. For a local model, download it in Ollama or restart the app and pick another.";
   if (error instanceof Anthropic.APIError) return `Claude API error (${error.status ?? "?"}). Try again shortly.`;
+  if (error instanceof EndpointError) return `My AI model failed: ${error.message}.`;
   return `Something went wrong: ${error instanceof Error ? error.message : String(error)}`;
 }
 
