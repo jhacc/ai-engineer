@@ -9,6 +9,21 @@ It has two parts:
 - **The mod** (`ai-engineer`), installed like any Factorio mod.
 - **The helper app**, which runs on your computer while you play and connects the game to the AI model. Mods can't reach the internet or other programs, so this small app does it for the game.
 
+### Is the helper app safe?
+
+All of its code is in this repository ([`app/src`](app/src)), under the MIT license. The release downloads are built from it with `bun run build:all`; if you'd rather not run a downloaded file, install [Bun](https://bun.sh), clone this repo, and run `bun install` then `bun start` (or `bun run build` for your own copy of the app).
+
+What it does on your computer:
+
+- **Connects to** Factorio over RCON (`127.0.0.1:27015` unless you change it), and to the model you chose: Ollama on your own computer (`localhost:11434`) or Anthropic's API. Nothing else: no analytics, tracking or auto-updates.
+- **Writes** its settings and saved conversations to its own folder (`%APPDATA%\ai-engineer` on Windows, `~/Library/Application Support/ai-engineer` on a Mac). Your Anthropic key, if you use one, is stored there and only sent to Anthropic.
+- **Changes Factorio's `config.ini`** only if you say yes, to turn on RCON with a random password. It saves a backup next to it first (`config.ini.ai-engineer-backup`).
+- Holds local port `47613` (on `127.0.0.1`, unreachable from other computers) so a second copy of the app knows one is already running.
+
+It isn't code-signed because signing certificates cost a yearly fee, which is why Windows and macOS warn about it.
+
+If you turn on cheats, the engineer can run Lua commands in your game. These run inside Factorio and can change your save (keep a backup), but can't run programs on your computer.
+
 ## Setup
 
 1. **Install the mod** from the Factorio mod portal (in game: Mods → Install → search "AI Engineer").

@@ -7,7 +7,7 @@ It runs on either a **free local model** (through [Ollama](https://ollama.com)) 
 ## Install
 
 1. Install this mod.
-2. Download the helper app from [GitHub Releases](https://github.com/jhacc/ai-engineer/releases). It isn't signed, so your computer may warn you about it.
+2. Download the helper app from [GitHub Releases](https://github.com/jhacc/ai-engineer/releases). It isn't signed, so your computer may warn you about it. It's open source: [see what it does and how to build it yourself](https://github.com/jhacc/ai-engineer#is-the-helper-app-safe).
    - **Windows:** `ai-engineer.exe`. If SmartScreen appears, click "More info" → "Run anyway".
    - **Mac:** `ai-engineer-mac-arm64.zip` (M1 or newer) or `ai-engineer-mac-intel.zip`. Unzip it, then right-click `ai-engineer` → Open → Open. If macOS still refuses, go to System Settings → Privacy & Security and click "Open Anyway".
 3. Run it and choose your model:
