@@ -20,7 +20,7 @@ What it does on your computer:
 - **Changes Factorio's `config.ini`** only if you say yes, to turn on RCON with a random password. It saves a backup next to it first (`config.ini.ai-engineer-backup`).
 - Holds local port `47613` (on `127.0.0.1`, unreachable from other computers) so a second copy of the app knows one is already running.
 
-It isn't code-signed because signing certificates cost a yearly fee, which is why Windows and macOS warn about it.
+It isn't code-signed because signing certificates cost a yearly fee, which is why Windows and macOS warn about it. Each release lists the SHA-256 checksum of every download (also attached as `SHA256SUMS.txt`). To check yours, run `Get-FileHash ai-engineer.exe` in PowerShell (it prints the checksum in capitals), or `shasum -a 256 ai-engineer-mac-arm64.zip` in a Mac Terminal, and compare.
 
 If you turn on cheats, the engineer can run Lua commands in your game. These run inside Factorio and can change your save (keep a backup), but can't run programs on your computer.
 
