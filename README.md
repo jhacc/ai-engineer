@@ -1,26 +1,54 @@
 # AI Engineer
 
-A second engineer for Factorio 2.0 that plays alongside you, powered by Claude or your local AI engine. See the bottom of this page for local AI setup. Talk to it in game ("mine some iron and build a furnace") and it walks, mines, crafts and builds like a player, using only what's in its own inventory (or you can enable cheats). 
+A second engineer for Factorio 2.0 that plays alongside you. Talk to it in game ("mine some iron and build a furnace") and it walks, mines, crafts and builds like a player, using only what's in its own inventory (or you can enable cheats).
+
+It runs on a **free AI model on your own computer** (through [Ollama](https://ollama.com)), or on **Claude** with your own Anthropic API key.
 
 It has two parts:
 
 - **The mod** (`ai-engineer`), installed like any Factorio mod.
-- **The helper app** (`ai-engineer.exe`), which runs on your computer while you play and talks to Claude using **your own Anthropic API key**. Mods can't reach the internet, so this small app does it for the game.
+- **The helper app**, which runs on your computer while you play and connects the game to the AI model. Mods can't reach the internet or other programs, so this small app does it for the game.
 
 ## Setup
 
-1. Install the mod and the helper app from the [releases page](https://github.com/jhacc/ai-engineer/releases): `ai-engineer.exe` on Windows, or on a Mac `ai-engineer-mac-arm64.zip` (M1 or newer) or `ai-engineer-mac-intel.zip`. The app isn't signed: on Windows click "More info" → "Run anyway" if SmartScreen appears; on a Mac unzip it, then right-click `ai-engineer` → Open → Open (or System Settings → Privacy & Security → "Open Anyway").
-2. Get an Anthropic API key at [console.anthropic.com](https://console.anthropic.com/settings/keys). Usage is billed to your Anthropic account. Creating the key in its own workspace with a spend limit keeps costs predictable.
-3. Run the helper app. It asks for your key and which Claude model to use. It can also turn on Factorio's RCON setting for you (close Factorio first). Each time you start it, it goes through the settings again with your last answers filled in, so press Enter to keep each one.
-4. In Factorio, **host a multiplayer game**. It can be private, with just you. Single-player games don't open RCON, which the app needs.
-5. The app shows a code. Type `/ai-pair <code>` in the game chat. Your engineer appears next to you.
+1. **Install the mod** from the Factorio mod portal (in game: Mods → Install → search "AI Engineer").
+2. **Download the helper app** from the [releases page](https://github.com/jhacc/ai-engineer/releases): `ai-engineer.exe` on Windows, or on a Mac `ai-engineer-mac-arm64.zip` (M1 or newer) or `ai-engineer-mac-intel.zip`. The app isn't signed: on Windows click "More info" → "Run anyway" if SmartScreen appears; on a Mac unzip it, then right-click `ai-engineer` → Open → Open (or System Settings → Privacy & Security → "Open Anyway").
+3. **Choose your AI**: set up a [local model](#option-a-a-free-local-model-ollama) or a [Claude API key](#option-b-claude) (below).
+4. **Run the helper app** and answer its questions. It can turn on Factorio's RCON setting for you (close Factorio first). Each time you start it, it goes through the settings again with your last answers filled in, so press Enter to keep each one.
+5. In Factorio, **host a multiplayer game**. It can be private, with just you. Single-player games don't open RCON, which the app needs.
+6. The app shows a code. Type `/ai-pair <code>` in the game chat. Your engineer appears next to you.
+
+### Option A: a free local model (Ollama)
+
+The engineer can use a free model running on your own computer, with no account and no costs. Local models play worse than Claude: expect more mistakes and forgotten tasks. A graphics card (GPU) makes them much faster; without one, every action is slow.
+
+1. **Install Ollama.** Download it from [ollama.com/download](https://ollama.com/download) and run the installer (on a Mac, move Ollama to Applications and open it). Ollama then runs in the background: look for its llama icon in the system tray (Windows) or menu bar (Mac). It starts by itself when you log in.
+2. **Download a model.** Open a terminal (Windows: PowerShell, from the Start menu; Mac: Terminal) and run one of:
+   - `ollama pull qwen3:4b-instruct`: fast, acts in a few seconds, but makes more mistakes.
+   - `ollama pull qwen3:4b`: thinks before every action, so it makes far fewer mistakes, but each action takes longer (about 35 seconds on a laptop RTX 4070).
+
+   Each is about a 2.5 GB download. The model shares your graphics card's memory with Factorio, so pick one that leaves room for the game: about 2.5 GB for 4B models like these, 5 GB for 8B ones (`qwen3:8b`). Run `ollama list` to see what you've downloaded.
+3. **Raise the context length to at least 16K.** This is how much of the conversation the model can keep in mind. Ollama's default of 4K is too small, and the engineer forgets what it's doing. Either:
+   - open the Ollama app's **Settings** and drag **Context length** to 16K (or more if your graphics card has the memory), or
+   - set the `OLLAMA_CONTEXT_LENGTH` environment variable, then quit Ollama (right-click its icon → Quit) and open it again. Windows: run `setx OLLAMA_CONTEXT_LENGTH 16384` in PowerShell. Mac: run `launchctl setenv OLLAMA_CONTEXT_LENGTH 16384` in Terminal.
+
+   Optional: setting `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` the same way roughly halves the memory that context takes.
+4. **In the helper app**, choose the local model option. Press Enter to keep Ollama's usual address, pick your model from the list, enter the context length you set, and choose whether it may think before acting (`qwen3:4b` always thinks; `qwen3:4b-instruct` never does).
+
+Older parts of the conversation are left out once it no longer fits in the context length. You can switch to Claude, or back, the next time you start the app; the settings for both are kept.
+
+### Option B: Claude
+
+Claude plays much better than a small local model, but usage is billed to your own Anthropic account.
+
+1. Get an Anthropic API key at [console.anthropic.com](https://console.anthropic.com/settings/keys). Creating the key in its own workspace with a spend limit keeps costs predictable.
+2. In the helper app, choose Claude, paste your key, and pick a model. Haiku is the cheapest (about 1/20th of Sonnet), but less capable.
 
 ## Playing
 
 - `/ai <message>`, or the chat window (`/ai` on its own opens it), talks to your engineer.
 - `/ai stop`, or the Stop button, stops whatever it's doing.
-- `/ai clear`, or the trash button in the chat window, starts a new chat. Your engineer stops and forgets the earlier conversation, but nothing in your game changes. Every request resends the whole conversation, so starting fresh when you switch tasks keeps costs down.
-- For the lowest cost, choose Claude Haiku when the app starts. It costs about 1/20th of Sonnet, but it's less capable.
+- `/ai clear`, or the trash button in the chat window, starts a new chat. Your engineer stops and forgets the earlier conversation, but nothing in your game changes. Every request resends the whole conversation, so starting fresh when you switch tasks keeps a local model quick and Claude's costs down.
 - It reports back when its jobs finish. Its replies appear in the chat window, visible only to you.
 
 ### Autopilot
@@ -44,7 +72,7 @@ Ask your engineer to automate something ("automate electronic circuits", "set up
 
 For now it builds assemblers and furnaces (steel, stone bricks) that it feeds and fuels by hand, which covers red, green and military science. Anything that needs fluids or oil is reported as blocked, with the reason.
 
-Your engineer only listens to you. Other players can't talk to it or see its replies, and nothing they type is ever sent to Claude under your key.
+Your engineer only listens to you. Other players can't talk to it or see its replies, and nothing they type is ever sent to Claude under your key. With a local model, the app can let every player talk to it instead.
 
 ### Filming your engineer
 
@@ -54,17 +82,7 @@ Your engineer only listens to you. Other players can't talk to it or see its rep
 
 Mod setting (Settings → Mod settings → Map): **Teleport the engineer when it's stuck** (on by default). When a path can't be found, the engineer jumps to its destination instead of giving up.
 
-To change your key, model, connection or your engineer's sense of humor, restart the app and type a new answer at that question. Humor goes from 0 (all business) to 3 (jokes, puns and banter); the default, 2, is a good-humored companion for being stranded on an alien planet together. It never jokes instead of working.
-
-## Using a local model instead (optional, experimental)
-
-If you don't want to pay for API usage, the engineer can use a free model running on your own computer through [Ollama](https://ollama.com). Local models play much worse than Claude: expect more mistakes and forgotten tasks. Without a graphics card, turns are also slow.
-
-1. Install Ollama and download a model, for example `ollama pull qwen3:4b`. The model shares your graphics card with Factorio, so pick one that leaves room for the game: about 2.5 GB for 4B models, 5 GB for 8B ones.
-2. Raise Ollama's context length to at least 16K (Ollama app: Settings → Context length, or the `OLLAMA_CONTEXT_LENGTH` environment variable). The default 4K is too small, and the engineer forgets what it's doing. Setting `OLLAMA_FLASH_ATTENTION=1` and `OLLAMA_KV_CACHE_TYPE=q8_0` as well roughly halves the memory that context takes.
-3. Start the helper app, choose the local model option, pick the model and choose whether it thinks before acting. Thinking makes far fewer mistakes, but each action takes longer (about 35 seconds for `qwen3:4b` on a laptop RTX 4070). Without it the engineer acts in a few seconds but gets more wrong. `qwen3:4b` always thinks; `qwen3:4b-instruct` never does.
-
-Older parts of the conversation are left out once it no longer fits in the context length. Your API key and Claude settings are kept, so you can switch back the next time you start the app.
+To change your model, key, connection or your engineer's sense of humor, restart the app and type a new answer at that question. Humor goes from 0 (all business) to 3 (jokes, puns and banter); the default, 2, is a good-humored companion for being stranded on an alien planet together. It never jokes instead of working.
 
 ## License
 
