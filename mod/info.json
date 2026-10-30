@@ -1,0 +1,9 @@
+{
+  "name": "ai-engineer",
+  "version": "0.1.2",
+  "title": "AI Engineer",
+  "author": "Xvv",
+  "factorio_version": "2.1",
+  "dependencies": ["base >= 2.0.0"],
+  "description": "A second engineer that plays alongside you, powered by Claude through the AI Engineer helper app. It only listens to the player who paired it."
+}

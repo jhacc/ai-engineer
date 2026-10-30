@@ -1,0 +1,37 @@
+{
+  "name": "ai-engineer",
+  "version": "0.1.2",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun app/src/main.ts",
+    "setup": "bun app/src/main.ts setup",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test app",
+    "test:game": "bun scripts/test-game.ts",
+    "test:autopilot": "bun scripts/test-autopilot.ts",
+    "test:goals": "bun scripts/test-goals.ts",
+    "test:pollution": "bun scripts/test-pollution.ts",
+    "test:bus": "bun scripts/test-bus.ts",
+    "test:bus-turned": "bun scripts/test-bus-turned.ts",
+    "test:smelter": "bun scripts/test-smelter.ts",
+    "test:layout-dir": "bun scripts/test-layout-dir.ts",
+    "test:grow": "bun scripts/test-grow.ts",
+    "test:route": "bun scripts/test-route.ts",
+    "test:stash": "bun scripts/test-stash.ts",
+    "test:order": "bun scripts/test-order.ts",
+    "check": "bun run typecheck && bun run test",
+    "build": "bun build app/src/main.ts --compile --outfile dist/ai-engineer",
+    "mod:install": "bun scripts/install-mod.ts",
+    "mod:package": "bun scripts/package-mod.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.6",
+    "fflate": "0.8.3",
+    "typescript": "5.9.3"
+  }
+}
